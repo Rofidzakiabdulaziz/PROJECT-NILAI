@@ -1,0 +1,20 @@
+API Sistem Nilai:
+
+Kelola nilai siswa untuk setiap mata pelajaran dan periode penilaian.
+Hitung rata-rata nilai siswa.
+Hasilkan transkrip nilai siswa.            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
