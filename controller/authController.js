@@ -1,133 +1,127 @@
 const { registerUser, loginUser, logoutUser, getMe } = require('../models/authModel');
 const { body, validationResult } = require('express-validator');
 
-async function register(req, res) {
+function register(req, res) {
   const validation = [
     body("name").notEmpty().withMessage("Name is required"),
     body("email").notEmpty().isEmail().withMessage("Email is required"),
     body("password").notEmpty().withMessage("Password is required"),
     body("kelas").notEmpty().withMessage("kelas is required")
   ];
-  await Promise.all(validation.map((v) => v.run(req)));
-  const errors = validationResult(req);
+  Promise.all(validation.map((v) => v.run(req))).then(() => {
+    const errors = validationResult(req);
 
-  if (!errors.isEmpty()) {
-    const errMsg = errors.array().map(error => ({
-      [error.path]: error.msg
-    })
-    )
-    return res.status(422).json({
-      status: false,
-      message: 'error validation fields',
-      error: errMsg
-    });
-  }
-  const { name, email, password, kelas } = req.body;
-  try {
-    const result = await registerUser(name, email, password, kelas);
-    if (result.success) {
-      res.status(201).json({
-        success: result.success,
-        message: result.message,
-        data: {
-          id: result.data.insertId,
-          name: result.data.name,
-          email: result.data.email,
-          kelas: result.data.kelas
-        }
-      })
-    } else {
-      res.status(500).json({ error:'internal server error'})
+    if (!errors.isEmpty()) {
+      const errMsg = errors.array().map(error => ({
+        [error.path]: error.msg
+      }));
+      return res.status(422).json({
+        status: false,
+        message: 'error validation fields',
+        error: errMsg
+      });
     }
-  }
-  catch (error) {
-    console.error(error);
-  }
-
+    const { name, email, password, kelas } = req.body;
+    registerUser(name, email, password, kelas, (error, result) => {
+      if (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'internal server error' });
+      }
+      if (result.success) {
+        res.status(201).json({
+          success: result.success,
+          message: result.message,
+          data: {
+            id: result.data.insertId,
+            name: result.data.name,
+            email: result.data.email,
+            kelas: result.data.kelas
+          }
+        });
+      } else {
+        res.status(500).json({ error: 'internal server error' });
+      }
+    });
+  });
 }
 
-// login dari authModel
-async function login(req, res) {
+function login(req, res) {
   const validation = [
     body("email").notEmpty().isEmail().withMessage("Email is required"),
     body("password").notEmpty().withMessage("Password is required")
   ];
-  await Promise.all(validation.map((v) => v.run(req)));
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const errMsg = errors.array().map(error => ({
-      [error.path]: error.msg
-    }));
-    return res.status(422).json({
-      success: false,
-      message: 'Validation error',
-      errors: errMsg
-    });
-  }
-
-  const { email, password } = req.body;
-  try {
-    const result = await loginUser(email, password);
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: result.message,
-        user: result.user,
-        token: result.token
+  Promise.all(validation.map((v) => v.run(req))).then(() => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errMsg = errors.array().map(error => ({
+        [error.path]: error.msg
+      }));
+      return res.status(422).json({
+        success: false,
+        message: 'Validation error',
+        errors: errMsg
       });
-    } else {
-      res.status(401).json({ success: false, error: result.message });
     }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
+
+    const { email, password } = req.body;
+    loginUser(email, password, (error, result) => {
+      if (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+      }
+      if (result.success) {
+        res.status(200).json({
+          success: true,
+          message: result.message,
+          user: result.user,
+          token: result.token
+        });
+      } else {
+        res.status(401).json({ success: false, error: result.message });
+      }
+    });
+  });
 }
 
-// get Me dari authModel
-
-async function me(req, res) {
-  try {
-    const token = req.headers.authorization;
-    const user = await getMe(token);
+function me(req, res) {
+  const token = req.headers.authorization;
+  getMe(token, (error, user) => {
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ error: true, message: 'Failed to fetch user data' });
+    }
     if (!user) {
       return res.status(404).json({ error: true, message: 'User not found' });
     }
     if (user.success) {
       res.status(200).json({
-        success: user.success, message: user.message, data: user.data
-      })
+        success: user.success,
+        message: user.message,
+        data: user.data
+      });
     }
-
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: true, message: 'Failed to fetch user data' });
-  }
+  });
 }
 
-
-// logout dari authModel
-
-async function logout(req, res) {
-  try {
-    const token = req.headers.authorization;
-    const result = await logoutUser(token);
+function logout(req, res) {
+  const token = req.headers.authorization;
+  logoutUser(token, (error, result) => {
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ error: true, message: 'Failed to logout user' });
+    }
     if (!result) {
       return res.status(404).json({ error: true, message: 'User not found' });
     }
-
     if (result.success) {
       res.status(201).json({
         success: result.success,
-        message: result.message,
-      })
+        message: result.message
+      });
     } else {
-      res.status(500).json({ error: result.message })
+      res.status(500).json({ error: result.message });
     }
-  }
-  catch (error) {
-    console.error(error);
-  }
+  });
 }
 
-module.exports = { register, login, me, logout }
+module.exports = { register, login, me, logout };

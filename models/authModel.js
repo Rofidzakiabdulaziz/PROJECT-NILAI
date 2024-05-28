@@ -4,114 +4,116 @@ const jwt = require('jsonwebtoken');
 
 // register
 
-async function registerUser(name, email, password, kelas) {
-  try {
-    // cek apakah email ini sudah terdaftar / belum?
-    const [existingEmailUser] = await connection.query('select * from user where email =?', [email]);
-    if (existingEmailUser.length > 0) throw new Error('Email already exists');
+function registerUser(name, email, password, kelas, callback) {
+  // cek apakah email ini sudah terdaftar / belum?
+  connection.query('select * from user where email =?', [email], (error, existingEmailUser) => {
+    if (error) return callback(error);
+
+    if (existingEmailUser.length > 0) return callback(new Error('Email already exists'));
+
     // cek apakah password yang dimasukkan benar?
-    const hashedPassword = await bcrypt.hash(password, 16);
-    // kalau tidak ada maka kita boleh buat email tersebut.
-    const [newUser] = await connection.query(
-      'insert into user (name, email, password, kelas) values (?, ? , ? , ?)', [name, email, hashedPassword, kelas]);
+    bcrypt.hash(password, 16, (hashError, hashedPassword) => {
+      if (hashError) return callback(hashError);
 
-    const [createdUser] = await connection.query('SELECT * FROM user WHERE id = ?', [newUser.insertId]);
+      // kalau tidak ada maka kita boleh buat email tersebut.
+      connection.query(
+        'insert into user (name, email, password, kelas) values (?, ? , ? , ?)',
+        [name, email, hashedPassword, kelas],
+        (insertError, newUser) => {
+          if (insertError) return callback(insertError);
 
-    return {
-      success: true,
-      message: 'User has been created',
-      data: createdUser[0]
-    }
-  }
-  catch (error) {
-    throw new Error(error);
-  }
+          connection.query('SELECT * FROM user WHERE id = ?', [newUser.insertId], (selectError, createdUser) => {
+            if (selectError) return callback(selectError);
+
+            callback(null, {
+              success: true,
+              message: 'User has been created',
+              data: createdUser[0]
+            });
+          });
+        }
+      );
+    });
+  });
 }
-
 
 // login
 
-async function loginUser(email, password) {
-  try {
-    // Cek apakah email ini sudah terdaftar atau belum
-    const [existingEmailUser] = await connection.query('SELECT * FROM user WHERE email = ?', [email]);
+function loginUser(email, password, callback) {
+  // Cek apakah email ini sudah terdaftar atau belum
+  connection.query('SELECT * FROM user WHERE email = ?', [email], (queryError, existingEmailUser) => {
+    if (queryError) return callback(queryError);
+
     if (existingEmailUser.length === 0) {
-      throw new Error('Email does not exist');
+      return callback(new Error('Email does not exist'));
     }
 
     const user = existingEmailUser[0];
 
     // Periksa apakah password yang dimasukkan benar
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new Error('Invalid email or password');
-    }
+    bcrypt.compare(password, user.password, (compareError, isPasswordValid) => {
+      if (compareError) return callback(compareError);
 
-    // Jika email dan password cocok, buat token JWT
-    const token = jwt.sign({ id: user.id }, 'bazmaSecretKey', {
-      expiresIn: '7h'
+      if (!isPasswordValid) {
+        return callback(new Error('Invalid email or password'));
+      }
+
+      // Jika email dan password cocok, buat token JWT
+      const token = jwt.sign({ id: user.id }, 'bazmaSecretKey', {
+        expiresIn: '7h'
+      });
+
+      callback(null, {
+        success: true,
+        message: 'User has been logged in',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          kelas: user.kelas
+        },
+        token
+      });
     });
-
-    // Kembalikan informasi user dan token
-    // await connection.query('UPDATE user SET token = ? WHERE id = ?', [token, user.id]);
-
-    return {
-      success: true,
-      message: 'User has been logged in',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        kelas: user.kelas
-      },
-      token
-    };
-  } catch (error) {
-    console.error(error);
-    throw new Error('Login failed');
-  }
+  });
 }
 
 // get me dengan jwt
 
-async function getMe(token) {
-  try {
-    const decoded = jwt.verify(token, 'bazmaSecretKey');
-    const [checkUser] = await connection.query('select * from user where id =?', [decoded.id]);
+function getMe(token, callback) {
+  jwt.verify(token, 'bazmaSecretKey', (verifyError, decoded) => {
+    if (verifyError) return callback(verifyError);
 
-    const user = checkUser[0];
-    return {
-      success: true,
-      message: 'User data fetched successfully',
-      data: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        kelas: user.kelas
-        
-      }
-    }
-  }
-  catch (error) {
-    throw new Error(error);
-  }
+    connection.query('select * from user where id =?', [decoded.id], (queryError, checkUser) => {
+      if (queryError) return callback(queryError);
+
+      const user = checkUser[0];
+      callback(null, {
+        success: true,
+        message: 'User data fetched successfully',
+        data: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          kelas: user.kelas
+        }
+      });
+    });
+  });
 }
 
 // logout
 
-async function logoutUser(token) {
-  try {
-    const decoded = jwt.verify(token, 'bazmaSecretKey');
+function logoutUser(token, callback) {
+  jwt.verify(token, 'bazmaSecretKey', (verifyError, decoded) => {
+    if (verifyError) return callback(verifyError);
+
     jwt.sign({ id: decoded.id }, 'bazmaSecretKey', {
       expiresIn: '7h'
     });
 
-    return { success: true, message: 'Logout successful' };
-
-  }
-  catch (error) {
-    throw new Error(error);
-  }
+    callback(null, { success: true, message: 'Logout successful' });
+  });
 }
 
 module.exports = { registerUser, loginUser, getMe, logoutUser }

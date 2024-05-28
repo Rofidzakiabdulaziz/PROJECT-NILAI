@@ -1,6 +1,5 @@
 const connection = require('../config/connection');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+
 
 const Subject = {
   create: (data, callback) => {
@@ -9,10 +8,17 @@ const Subject = {
     connection.query(query, [data], callback);
     return true
   },
-  findAll: (callback) => {
+  findAll: (callback) => { 
     const query = 'SELECT * FROM subjects';
     connection.query(query, callback);
-    return false
+  },
+  delete: (id, callback) => {
+    const query = 'DELETE FROM subjects WHERE id = ?';
+    connection.query(query, [id], callback);
+  },
+  update: (id, data, callback) => {
+    const query = 'UPDATE subjects SET name = ? WHERE id = ?';
+    connection.query(query, [data, id], callback);
   }
 };
 
