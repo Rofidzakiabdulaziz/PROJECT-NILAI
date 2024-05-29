@@ -1,7 +1,4 @@
 const connection = require('../config/connection');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-
 
 
  const Grade = {
@@ -20,7 +17,9 @@ const jwt = require('jsonwebtoken');
   calculateAverage: (user_id, callback) => {
     const query = 'SELECT AVG(grade) as average FROM grades WHERE user_id = ?';
     connection.query(query, [user_id], callback);
-  }
+  },
+
+  
 };
 
 module.exports = Grade;

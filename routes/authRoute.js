@@ -11,7 +11,7 @@ router.get('/getMe',verifyToken,me);
 router.post('/logout',verifyToken,logout)
 
 
-// api/auth/register
+
 
 module.exports = router;
 

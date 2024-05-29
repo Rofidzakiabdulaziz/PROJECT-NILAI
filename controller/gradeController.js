@@ -53,4 +53,7 @@ const generateTranscript = (req, res) => {
   });
 };
 
-module.exports = { addGrade, getGradesByStudentId, calculateAverage, generateTranscript };
+
+
+
+module.exports = { addGrade, getGradesByStudentId, calculateAverage, generateTranscript};

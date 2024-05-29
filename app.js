@@ -10,11 +10,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
 const AuthRoute = require('./routes/authRoute');
-const studentRoutes = require('./routes/studentRoute');
 const gradeRoutes = require('./routes/gradeRoute');
 const subjectsRoute = require('./routes/subjectRoute');
 
-app.use('/api/students', studentRoutes);
+
 app.use('/api/subjects', subjectsRoute);
 app.use('/api/grades', gradeRoutes);
 app.use("/api/nilai", AuthRoute);
